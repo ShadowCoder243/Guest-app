@@ -1,0 +1,5 @@
+{
+  "buildCommand": "pnpm --filter @workspace/invite-manager build",
+  "outputDirectory": "artifacts/invite-manager/dist/public",
+  "installCommand": "pnpm install --frozen-lockfile"
+}
