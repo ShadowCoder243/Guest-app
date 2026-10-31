@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Invitations & Placement"
+description = "Application PWA en français pour gérer les événements, les invités et leurs groupes, la capacité des salles, les tables, les invitations personnalisées partageables par lien ou QR code, le pointage à l'arrivée et l'export des listes, avec prise en charge hors connexion."
+version = "1.0.0"
+id = "artifacts/invite-manager"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 23248
+
+[services.development]
+run = "pnpm --filter @workspace/invite-manager run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/invite-manager", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/invite-manager/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23248"
+BASE_PATH = "/"

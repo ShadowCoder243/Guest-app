@@ -3,13 +3,21 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: API de gestion d'événements, invités, invitations et arrivées.
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Connexion et gestion des comptes
+  - name: events
+    description: Événements et tableaux de bord
+  - name: guests
+    description: Invités, invitations et placement
+  - name: check-in
+    description: Accueil et pointage des invités
 paths:
   /healthz:
     get:
@@ -24,6 +32,545 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /auth/bootstrap:
+    get:
+      operationId: getBootstrapState
+      tags: [auth]
+      summary: Vérifier si le premier administrateur doit être créé
+      responses:
+        "200":
+          description: État initial de la plateforme
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BootstrapState"
+  /auth/setup:
+    post:
+      operationId: setupAdmin
+      tags: [auth]
+      summary: Créer le premier administrateur
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetupAdminInput"
+      responses:
+        "201":
+          description: Administrateur créé et connecté
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "409":
+          description: Un administrateur existe déjà
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Ouvrir une session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Session ouverte
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "401":
+          description: Identifiants incorrects
+  /auth/me:
+    get:
+      operationId: getCurrentUser
+      tags: [auth]
+      summary: Obtenir l'utilisateur connecté
+      responses:
+        "200":
+          description: Compte actif
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "401":
+          description: Session absente ou expirée
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Fermer la session
+      responses:
+        "200":
+          description: Session fermée
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResponse"
+  /accounts:
+    get:
+      operationId: getAccounts
+      tags: [auth]
+      summary: Lister les comptes utilisateurs
+      responses:
+        "200":
+          description: Comptes créés par l'administrateur
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Account"
+    post:
+      operationId: createAccount
+      tags: [auth]
+      summary: Créer un compte organisateur
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccountInput"
+      responses:
+        "201":
+          description: Compte créé
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Account"
+  /accounts/{accountId}:
+    patch:
+      operationId: updateAccount
+      tags: [auth]
+      summary: Modifier un compte ou réinitialiser son code
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccountUpdate"
+      responses:
+        "200":
+          description: Compte modifié
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Account"
+    delete:
+      operationId: deleteAccount
+      tags: [auth]
+      summary: Supprimer un compte organisateur
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Compte supprimé
+  /events:
+    get:
+      operationId: getEvents
+      tags: [events]
+      summary: Lister les événements
+      responses:
+        "200":
+          description: Événements accessibles à l'utilisateur
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Event"
+    post:
+      operationId: createEvent
+      tags: [events]
+      summary: Créer un événement
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EventInput"
+      responses:
+        "201":
+          description: Événement créé
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Event"
+  /events/{eventId}:
+    get:
+      operationId: getEvent
+      tags: [events]
+      summary: Obtenir un événement
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Détails de l'événement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Event"
+    patch:
+      operationId: updateEvent
+      tags: [events]
+      summary: Modifier un événement
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EventUpdate"
+      responses:
+        "200":
+          description: Événement modifié
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Event"
+    delete:
+      operationId: deleteEvent
+      tags: [events]
+      summary: Supprimer un événement
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Événement supprimé
+  /events/{eventId}/dashboard:
+    get:
+      operationId: getEventDashboard
+      tags: [events]
+      summary: Obtenir les chiffres clés d'un événement
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Totaux, capacité et activité
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventDashboard"
+  /events/{eventId}/tables:
+    get:
+      operationId: getTables
+      tags: [guests]
+      summary: Lister les tables d'un événement
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Tables et places utilisées
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GuestTable"
+    post:
+      operationId: createTable
+      tags: [guests]
+      summary: Créer une table
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TableInput"
+      responses:
+        "201":
+          description: Table créée
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GuestTable"
+  /tables/{tableId}:
+    patch:
+      operationId: updateTable
+      tags: [guests]
+      summary: Modifier une table
+      parameters:
+        - name: tableId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TableUpdate"
+      responses:
+        "200":
+          description: Table modifiée
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GuestTable"
+    delete:
+      operationId: deleteTable
+      tags: [guests]
+      summary: Supprimer une table
+      parameters:
+        - name: tableId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Table supprimée
+  /events/{eventId}/guests:
+    get:
+      operationId: listEventGuests
+      tags: [guests]
+      summary: Lister et rechercher les invités
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Invités, groupes et statut des invitations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Guest"
+    post:
+      operationId: createGuest
+      tags: [guests]
+      summary: Ajouter un invité ou un groupe d'invités
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GuestInput"
+      responses:
+        "201":
+          description: Invité créé avec lien personnalisé
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Guest"
+  /guests/{guestId}:
+    patch:
+      operationId: updateGuest
+      tags: [guests]
+      summary: Modifier un invité et son placement
+      parameters:
+        - name: guestId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GuestUpdate"
+      responses:
+        "200":
+          description: Invité modifié
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Guest"
+    delete:
+      operationId: deleteGuest
+      tags: [guests]
+      summary: Supprimer un invité
+      parameters:
+        - name: guestId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Invité supprimé
+  /guests/{guestId}/share:
+    post:
+      operationId: markGuestShared
+      tags: [guests]
+      summary: Enregistrer le partage d'une invitation
+      parameters:
+        - name: guestId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Partage enregistré
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Guest"
+  /events/{eventId}/export.csv:
+    get:
+      operationId: exportGuests
+      tags: [guests]
+      summary: Télécharger la liste des invités et invitations
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Fichier CSV des invités
+          content:
+            text/csv:
+              schema:
+                type: string
+  /public/invitations/{code}:
+    get:
+      operationId: getPublicInvitation
+      tags: [guests]
+      summary: Afficher une invitation personnalisée
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Invitation et informations utiles à l'invité
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicInvitation"
+        "404":
+          description: Invitation introuvable
+  /public/invitations/{code}/rsvp:
+    post:
+      operationId: respondToInvitation
+      tags: [guests]
+      summary: Confirmer ou décliner une invitation
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RsvpInput"
+      responses:
+        "200":
+          description: Réponse enregistrée
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicInvitation"
+  /events/{eventId}/check-ins:
+    post:
+      operationId: checkInGuest
+      tags: [check-in]
+      summary: Scanner ou rechercher un code d'invitation
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CheckInInput"
+      responses:
+        "200":
+          description: Invité contrôlé, avec table et nombre de places
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckInResult"
+        "404":
+          description: Invitation inconnue pour cet événement
+  /events/{eventId}/check-ins/offline-sync:
+    post:
+      operationId: syncOfflineCheckIns
+      tags: [check-in]
+      summary: Synchroniser les arrivées relevées hors connexion
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OfflineCheckInsInput"
+      responses:
+        "200":
+          description: Résultats synchronisés, opérations dupliquées ignorées
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OfflineCheckInsResult"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +580,226 @@ components:
           type: string
       required:
         - status
+    StatusResponse:
+      type: object
+      properties:
+        status:
+          type: string
+      required: [status]
+    BootstrapState:
+      type: object
+      properties:
+        setupRequired:
+          type: boolean
+      required: [setupRequired]
+    AuthUser:
+      type: object
+      properties:
+        id: { type: string }
+        username: { type: string }
+        displayName: { type: string }
+        role: { type: string, enum: [admin, organizer] }
+      required: [id, username, displayName, role]
+    Account:
+      type: object
+      properties:
+        id: { type: string }
+        username: { type: string }
+        displayName: { type: string }
+        role: { type: string, enum: [admin, organizer] }
+        active: { type: boolean }
+        createdAt: { type: string, format: date-time }
+      required: [id, username, displayName, role, active, createdAt]
+    SetupAdminInput:
+      type: object
+      properties:
+        username: { type: string, minLength: 3, maxLength: 40 }
+        displayName: { type: string, minLength: 1, maxLength: 100 }
+        passcode: { type: string, minLength: 8, maxLength: 128 }
+      required: [username, displayName, passcode]
+    LoginInput:
+      type: object
+      properties:
+        username: { type: string, minLength: 1, maxLength: 40 }
+        passcode: { type: string, minLength: 1, maxLength: 128 }
+      required: [username, passcode]
+    AccountInput:
+      type: object
+      properties:
+        username: { type: string, minLength: 3, maxLength: 40 }
+        displayName: { type: string, minLength: 1, maxLength: 100 }
+        passcode: { type: string, minLength: 8, maxLength: 128 }
+        role: { type: string, enum: [organizer] }
+      required: [username, displayName, passcode, role]
+    AccountUpdate:
+      type: object
+      properties:
+        displayName: { type: string, minLength: 1, maxLength: 100 }
+        passcode: { type: string, minLength: 8, maxLength: 128 }
+        active: { type: boolean }
+    Event:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        type: { type: string }
+        eventAt: { type: ["string", "null"], format: date-time }
+        venue: { type: ["string", "null"] }
+        invitationUrl: { type: ["string", "null"] }
+        invitationImageUrl: { type: ["string", "null"] }
+        expectedGuests: { type: ["integer", "null"] }
+        roomCapacity: { type: ["integer", "null"] }
+        createdAt: { type: string, format: date-time }
+      required: [id, name, type, eventAt, venue, invitationUrl, invitationImageUrl, expectedGuests, roomCapacity, createdAt]
+    EventInput:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 160 }
+        type: { type: string, minLength: 1, maxLength: 60 }
+        eventAt: { type: ["string", "null"], format: date-time }
+        venue: { type: ["string", "null"], maxLength: 300 }
+        invitationUrl: { type: ["string", "null"], format: uri }
+        invitationImageUrl: { type: ["string", "null"], format: uri }
+        expectedGuests: { type: ["integer", "null"], minimum: 1 }
+        roomCapacity: { type: ["integer", "null"], minimum: 1 }
+      required: [name, type, eventAt, venue, invitationUrl, invitationImageUrl, expectedGuests, roomCapacity]
+    EventUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 160 }
+        type: { type: string, minLength: 1, maxLength: 60 }
+        eventAt: { type: ["string", "null"], format: date-time }
+        venue: { type: ["string", "null"], maxLength: 300 }
+        invitationUrl: { type: ["string", "null"], format: uri }
+        invitationImageUrl: { type: ["string", "null"], format: uri }
+        expectedGuests: { type: ["integer", "null"], minimum: 1 }
+        roomCapacity: { type: ["integer", "null"], minimum: 1 }
+    EventDashboard:
+      type: object
+      properties:
+        totalGroups: { type: integer }
+        totalPeople: { type: integer }
+        invitationsShared: { type: integer }
+        confirmedPeople: { type: integer }
+        declinedGroups: { type: integer }
+        checkedInPeople: { type: integer }
+        tableCount: { type: integer }
+        seatedPeople: { type: integer }
+        roomCapacity: { type: ["integer", "null"] }
+        recentGuests:
+          type: array
+          items: { $ref: "#/components/schemas/Guest" }
+      required: [totalGroups, totalPeople, invitationsShared, confirmedPeople, declinedGroups, checkedInPeople, tableCount, seatedPeople, roomCapacity, recentGuests]
+    GuestTable:
+      type: object
+      properties:
+        id: { type: string }
+        eventId: { type: string }
+        name: { type: string }
+        capacity: { type: integer }
+        occupiedSeats: { type: integer }
+        createdAt: { type: string, format: date-time }
+      required: [id, eventId, name, capacity, occupiedSeats, createdAt]
+    TableInput:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+        capacity: { type: integer, minimum: 1, maximum: 100 }
+      required: [name, capacity]
+    TableUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+        capacity: { type: integer, minimum: 1, maximum: 100 }
+    Guest:
+      type: object
+      properties:
+        id: { type: string }
+        eventId: { type: string }
+        fullName: { type: string }
+        groupType: { type: string, enum: [single, couple, family, group] }
+        partySize: { type: integer }
+        category: { type: string }
+        tableId: { type: ["string", "null"] }
+        tableName: { type: ["string", "null"] }
+        invitationCode: { type: string }
+        invitationUrl: { type: string }
+        invitationStatus: { type: string, enum: [draft, shared] }
+        sharedAt: { type: ["string", "null"], format: date-time }
+        rsvpStatus: { type: string, enum: [pending, attending, declined] }
+        checkedInAt: { type: ["string", "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
+      required: [id, eventId, fullName, groupType, partySize, category, tableId, tableName, invitationCode, invitationUrl, invitationStatus, sharedAt, rsvpStatus, checkedInAt, createdAt]
+    GuestInput:
+      type: object
+      properties:
+        fullName: { type: string, minLength: 1, maxLength: 160 }
+        groupType: { type: string, enum: [single, couple, family, group] }
+        partySize: { type: integer, minimum: 1, maximum: 30 }
+        category: { type: string, minLength: 1, maxLength: 80 }
+        tableId: { type: ["string", "null"] }
+      required: [fullName, groupType, partySize, category, tableId]
+    GuestUpdate:
+      type: object
+      properties:
+        fullName: { type: string, minLength: 1, maxLength: 160 }
+        groupType: { type: string, enum: [single, couple, family, group] }
+        partySize: { type: integer, minimum: 1, maximum: 30 }
+        category: { type: string, minLength: 1, maxLength: 80 }
+        tableId: { type: ["string", "null"] }
+    PublicInvitation:
+      type: object
+      properties:
+        guestName: { type: string }
+        partySize: { type: integer }
+        eventName: { type: string }
+        eventType: { type: string }
+        eventAt: { type: ["string", "null"], format: date-time }
+        venue: { type: ["string", "null"] }
+        invitationUrl: { type: ["string", "null"] }
+        invitationImageUrl: { type: ["string", "null"] }
+        tableName: { type: ["string", "null"] }
+        rsvpStatus: { type: string, enum: [pending, attending, declined] }
+      required: [guestName, partySize, eventName, eventType, eventAt, venue, invitationUrl, invitationImageUrl, tableName, rsvpStatus]
+    RsvpInput:
+      type: object
+      properties:
+        status: { type: string, enum: [attending, declined] }
+      required: [status]
+    CheckInInput:
+      type: object
+      properties:
+        invitationCode: { type: string, minLength: 3, maxLength: 80 }
+      required: [invitationCode]
+    CheckInResult:
+      type: object
+      properties:
+        guest:
+          $ref: "#/components/schemas/Guest"
+        alreadyCheckedIn: { type: boolean }
+        message: { type: string }
+      required: [guest, alreadyCheckedIn, message]
+    OfflineCheckInItem:
+      type: object
+      properties:
+        invitationCode: { type: string }
+        idempotencyKey: { type: string }
+        checkedInAt: { type: string, format: date-time }
+      required: [invitationCode, idempotencyKey, checkedInAt]
+    OfflineCheckInsInput:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/OfflineCheckInItem" }
+      required: [items]
+    OfflineCheckInsResult:
+      type: object
+      properties:
+        synced: { type: integer }
+        alreadyCheckedIn: { type: integer }
+        notFound:
+          type: array
+          items: { type: string }
+      required: [synced, alreadyCheckedIn, notFound]
 
