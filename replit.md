@@ -49,6 +49,8 @@ Les équipes créent leurs événements, enregistrent les groupes invités, part
 - Provisionner `DATABASE_URL` avant de lancer l’API ou `db push`.
 - Configurer `FRONTEND_ORIGIN` en production pour limiter CORS et activer les cookies cross-origin correctement.
 - Les organisateurs ne voient que les événements dont ils sont propriétaires ; les événements doivent donc être créés par le compte qui les gère.
+- Dans Vercel, laisser `Root Directory` vide (racine du dépôt) afin que `api/[...].ts` soit détecté. Ne pas sélectionner `artifacts/invite-manager` comme racine du projet.
+- Les variables `DATABASE_URL` et `NODE_ENV=production` doivent être définies dans Vercel pour les environnements Preview et Production.
 
 ## Pointers
 
