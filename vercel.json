@@ -1,10 +1,11 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "pnpm --filter @workspace/invite-manager build",
   "outputDirectory": "artifacts/invite-manager/dist/public",
   "installCommand": "pnpm install --frozen-lockfile",
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "^/(?!api(?:/|$)|assets(?:/|$)|icons(?:/|$)|favicon\\.svg$|manifest\\.webmanifest$|service-worker\\.js$|robots\\.txt$)(.*)$",
       "destination": "/index.html"
     }
   ]
