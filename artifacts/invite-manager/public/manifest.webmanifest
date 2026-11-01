@@ -1,17 +1,17 @@
 {
-  "id": "/",
+  "id": "./",
   "name": "Invitations & Placement",
   "short_name": "Célébrations",
   "description": "Organisez chaque invitation, chaque place et chaque arrivée.",
   "lang": "fr",
-  "start_url": "/events",
-  "scope": "/",
+  "start_url": "./events",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#f7f2e8",
   "theme_color": "#351a21",
   "icons": [
     {
-      "src": "/icons/monogram.svg",
+      "src": "./icons/monogram.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"

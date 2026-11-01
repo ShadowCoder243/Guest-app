@@ -7,7 +7,9 @@ import './index.css';
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/service-worker.js').catch((error) => {
+    const appBase = new URL(import.meta.env.BASE_URL, window.location.origin);
+    const workerUrl = new URL('service-worker.js', appBase);
+    navigator.serviceWorker.register(workerUrl, { scope: appBase.pathname }).catch((error) => {
       console.warn('Installation hors ligne indisponible', error);
     });
   });

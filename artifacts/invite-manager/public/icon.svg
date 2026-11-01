@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="112" fill="#64172b"/>
-  <circle cx="256" cy="256" r="174" fill="none" stroke="#d7b64c" stroke-width="10"/>
-  <circle cx="256" cy="256" r="158" fill="none" stroke="#d7b64c" stroke-opacity=".35" stroke-width="2"/>
-  <text x="256" y="242" text-anchor="middle" fill="#f6e9c2" font-family="Georgia, serif" font-size="74" letter-spacing="4">I &amp; P</text>
-  <path d="M256 281l12 18-12 18-12-18z" fill="#d7b64c"/>
-  <path d="M216 299h80" stroke="#d7b64c" stroke-width="2"/>
-</svg>

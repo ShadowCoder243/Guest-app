@@ -1,8 +1,10 @@
 const CACHE = 'invitations-placement-shell-v1';
-const SHELL = ['/', '/manifest.webmanifest', '/icons/monogram.svg'];
+const SHELL = ['./', './manifest.webmanifest', './icons/monogram.svg'];
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)));
-  self.skipWaiting();
+  event.waitUntil(Promise.all([
+    caches.open(CACHE).then((cache) => cache.addAll(SHELL)),
+    self.skipWaiting(),
+  ]));
 });
 self.addEventListener('activate', (event) => {
   event.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key)))));
@@ -17,5 +19,8 @@ self.addEventListener('fetch', (event) => {
       caches.open(CACHE).then((cache) => cache.put(event.request, copy));
     }
     return response;
-  }).catch(() => caches.match(event.request).then((cached) => cached || caches.match('/'))));
+  }).catch(() => {
+    const appRoot = new URL('./', self.registration.scope);
+    return caches.match(event.request).then((cached) => cached || caches.match(appRoot.href));
+  }));
 });
