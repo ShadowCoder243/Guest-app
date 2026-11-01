@@ -8,7 +8,7 @@
       "destination": "https://gestion-des-invitations-pwa--shadowcoder322.replit.app/api/:path*"
     },
     {
-      "source": "^/(?!api(?:/|$)|assets(?:/|$)|icons(?:/|$)|favicon\\.svg$|manifest\\.webmanifest$|service-worker\\.js$|robots\\.txt$)(.*)$",
+      "source": "/(.*)",
       "destination": "/index.html"
     }
   ]
