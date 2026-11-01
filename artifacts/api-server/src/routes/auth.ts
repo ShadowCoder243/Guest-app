@@ -19,6 +19,12 @@ const lockWindowMs = 15 * 60 * 1000;
 const maxAttempts = 8;
 const dummySalt = "safe-dummy-salt-for-login-check";
 const dummyHash = "a".repeat(128);
+const sessionCookieOptions = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: process.env.FRONTEND_ORIGIN ? ("none" as const) : ("lax" as const),
+  path: "/",
+};
 
 async function hashPasscode(passcode: string, salt: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -44,10 +50,7 @@ async function startSession(userId: string, res: Response): Promise<void> {
   const expiresAt = new Date(Date.now() + sessionDurationMs);
   await db.insert(sessionsTable).values({ tokenHash, userId, expiresAt });
   res.cookie(SESSION_COOKIE, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-    path: "/",
+    ...sessionCookieOptions,
     maxAge: sessionDurationMs,
   });
 }
@@ -153,10 +156,7 @@ router.post("/auth/logout", async (req, res): Promise<void> => {
     await db.delete(sessionsTable).where(eq(sessionsTable.tokenHash, tokenHash));
   }
   res.clearCookie(SESSION_COOKIE, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-    path: "/",
+    ...sessionCookieOptions,
   });
   res.json({ status: "ok" });
 });

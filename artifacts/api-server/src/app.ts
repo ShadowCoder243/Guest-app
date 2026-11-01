@@ -27,7 +27,12 @@ app.use(
     },
   }),
 );
-app.use(cors());
+app.use(
+  cors({
+    origin: process.env.FRONTEND_ORIGIN || true,
+    credentials: true,
+  }),
+);
 app.use(cookieParser());
 app.use(loadSession);
 app.use(express.json());
