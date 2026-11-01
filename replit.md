@@ -1,15 +1,16 @@
-# [Project name]
+# Invitations & Placement
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Application privée de gestion d’événements, d’invitations personnalisées, de placement et d’accueil des invités.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm --filter @workspace/api-server run dev` — run the API server locally
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- `pnpm --filter @workspace/db run push` — push DB schema changes (development only)
+- Required env: `DATABASE_URL` — PostgreSQL connection string
+- Recommended production env: `NODE_ENV=production`, `FRONTEND_ORIGIN=https://your-domain.example`
 
 ## Stack
 
@@ -22,23 +23,32 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/invite-manager/src/App.tsx` — frontend routes and user workflows.
+- `artifacts/api-server/src/routes` — authenticated API routes and public invitation routes.
+- `lib/api-spec/openapi.yaml` — API source of truth.
+- `lib/db/src/schema` — PostgreSQL/Drizzle schema.
+- `vercel.json` and `api/[...].ts` — Vercel frontend/API configuration.
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Sessions use an HTTP-only cookie backed by PostgreSQL; passcodes are hashed with `scrypt`.
+- Administrators can manage all events; organizers can access only events they created.
+- Public invitation pages do not require authentication, while operational event data does.
+- Check-ins can be queued locally and synchronized idempotently when the network returns.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+Les équipes créent leurs événements, enregistrent les groupes invités, partagent des liens personnalisés, suivent les RSVP, attribuent les tables et enregistrent les arrivées par QR code, y compris avec une file hors connexion.
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Le dépôt contient des données potentiellement sensibles et doit rester privé.
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Provisionner `DATABASE_URL` avant de lancer l’API ou `db push`.
+- Configurer `FRONTEND_ORIGIN` en production pour limiter CORS et activer les cookies cross-origin correctement.
+- Les organisateurs ne voient que les événements dont ils sont propriétaires ; les événements doivent donc être créés par le compte qui les gère.
 
 ## Pointers
 

@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { and, eq, gt } from "drizzle-orm";
 import type { RequestHandler } from "express";
-import { db, sessionsTable, usersTable } from "@workspace/db";
+import { db, eventsTable, sessionsTable, usersTable } from "@workspace/db";
 
 export type SessionUser = {
   id: string;
@@ -71,3 +71,18 @@ export const requireAdmin: RequestHandler = (req, res, next): void => {
   }
   next();
 };
+
+/**
+ * Administrators can manage every event. Organizers can only access events
+ * they created. Keeping this check in one place prevents resource routes from
+ * accidentally exposing another organizer's guest data.
+ */
+export async function canAccessEvent(user: SessionUser, eventId: string): Promise<boolean> {
+  if (user.role === "admin") return true;
+  const [event] = await db
+    .select({ id: eventsTable.id })
+    .from(eventsTable)
+    .where(and(eq(eventsTable.id, eventId), eq(eventsTable.createdBy, user.id)))
+    .limit(1);
+  return Boolean(event);
+}

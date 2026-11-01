@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import { and, asc, eq, isNull, ne, sql } from "drizzle-orm";
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type RequestHandler } from "express";
 import {
   CheckInGuestBody,
   CheckInGuestParams,
@@ -25,10 +25,67 @@ import {
   UpdateTableParams,
 } from "@workspace/api-zod";
 import { db, eventsTable, guestTablesTable, guestsTable, offlineCheckInsTable } from "@workspace/db";
-import { requireUser } from "../middlewares/auth";
+import { canAccessEvent, requireUser } from "../middlewares/auth";
 
 const router: IRouter = Router();
 const baseInvitePath = "/invite/";
+
+const requireAccessibleEvent: RequestHandler = async (req, res, next): Promise<void> => {
+  if (!req.user) {
+    res.status(401).json({ error: "Connexion requise" });
+    return;
+  }
+  const eventId = req.params.eventId;
+  if (typeof eventId !== "string" || !(await canAccessEvent(req.user, eventId))) {
+    res.status(404).json({ error: "Événement introuvable" });
+    return;
+  }
+  next();
+};
+
+const requireAccessibleTable: RequestHandler = async (req, res, next): Promise<void> => {
+  if (!req.user) {
+    res.status(401).json({ error: "Connexion requise" });
+    return;
+  }
+  const tableId = typeof req.params.tableId === "string" ? req.params.tableId : null;
+  const [table] = tableId
+    ? await db
+        .select({ eventId: guestTablesTable.eventId })
+        .from(guestTablesTable)
+        .where(eq(guestTablesTable.id, tableId))
+        .limit(1)
+    : [];
+  if (!table || !(await canAccessEvent(req.user, table.eventId))) {
+    res.status(404).json({ error: "Table introuvable" });
+    return;
+  }
+  next();
+};
+
+const requireAccessibleGuest: RequestHandler = async (req, res, next): Promise<void> => {
+  if (!req.user) {
+    res.status(401).json({ error: "Connexion requise" });
+    return;
+  }
+  const guestId = typeof req.params.guestId === "string" ? req.params.guestId : null;
+  const [guest] = guestId
+    ? await db
+        .select({ eventId: guestsTable.eventId })
+        .from(guestsTable)
+        .where(eq(guestsTable.id, guestId))
+        .limit(1)
+    : [];
+  if (!guest || !(await canAccessEvent(req.user, guest.eventId))) {
+    res.status(404).json({ error: "Invité introuvable" });
+    return;
+  }
+  next();
+};
+
+router.use("/events/:eventId", requireAccessibleEvent);
+router.use("/tables/:tableId", requireAccessibleTable);
+router.use("/guests/:guestId", requireAccessibleGuest);
 
 function invitePath(code: string): string {
   return `${baseInvitePath}${code}`;
@@ -40,6 +97,8 @@ function groupSizeIsValid(groupType: string, partySize: number): boolean {
   if (groupType === "family") return partySize >= 2;
   return partySize >= 1;
 }
+
+class CapacityError extends Error {}
 
 async function findEvent(eventId: string) {
   const [event] = await db.select().from(eventsTable).where(eq(eventsTable.id, eventId)).limit(1);
@@ -73,13 +132,17 @@ async function buildGuest(eventId: string, guestId: string) {
 }
 
 async function tableAvailable(
+  database: any,
   eventId: string,
   tableId: string | null,
   partySize: number,
   excludingGuestId?: string,
 ): Promise<{ ok: boolean; error?: string }> {
   if (!tableId) return { ok: true };
-  const [table] = await db
+  await database.execute(
+    sql`select id from guest_tables where id = ${tableId} and event_id = ${eventId} for update`,
+  );
+  const [table] = await database
     .select()
     .from(guestTablesTable)
     .where(and(eq(guestTablesTable.id, tableId), eq(guestTablesTable.eventId, eventId)))
@@ -88,7 +151,7 @@ async function tableAvailable(
 
   const conditions = [eq(guestsTable.tableId, tableId), eq(guestsTable.eventId, eventId)];
   if (excludingGuestId) conditions.push(ne(guestsTable.id, excludingGuestId));
-  const [usage] = await db
+  const [usage] = await database
     .select({ seats: sql<number>`coalesce(sum(${guestsTable.partySize}), 0)::int` })
     .from(guestsTable)
     .where(and(...conditions));
@@ -286,16 +349,25 @@ router.post("/events/:eventId/guests", requireUser, async (req, res): Promise<vo
     res.status(404).json({ error: "Événement introuvable" });
     return;
   }
-  const available = await tableAvailable(event.id, body.data.tableId, body.data.partySize);
-  if (!available.ok) {
-    res.status(409).json({ error: available.error });
-    return;
+  let guest: { id: string } | undefined;
+  try {
+    guest = await db.transaction(async (tx) => {
+      const available = await tableAvailable(tx, event.id, body.data.tableId, body.data.partySize);
+      if (!available.ok) throw new CapacityError(available.error);
+      const code = randomBytes(9).toString("base64url").toUpperCase();
+      const [created] = await tx
+        .insert(guestsTable)
+        .values({ eventId: event.id, ...body.data, invitationCode: code })
+        .returning({ id: guestsTable.id });
+      return created;
+    });
+  } catch (error) {
+    if (error instanceof CapacityError) {
+      res.status(409).json({ error: error.message });
+      return;
+    }
+    throw error;
   }
-  const code = randomBytes(9).toString("base64url").toUpperCase();
-  const [guest] = await db
-    .insert(guestsTable)
-    .values({ eventId: event.id, ...body.data, invitationCode: code })
-    .returning({ id: guestsTable.id });
   const result = await buildGuest(event.id, guest.id);
   res.status(201).json(result);
 });
@@ -323,12 +395,19 @@ router.patch("/guests/:guestId", requireUser, async (req, res): Promise<void> =>
     return;
   }
   const tableId = body.data.tableId === undefined ? existing.tableId : body.data.tableId;
-  const available = await tableAvailable(existing.eventId, tableId, partySize, existing.id);
-  if (!available.ok) {
-    res.status(409).json({ error: available.error });
-    return;
+  try {
+    await db.transaction(async (tx) => {
+      const available = await tableAvailable(tx, existing.eventId, tableId, partySize, existing.id);
+      if (!available.ok) throw new CapacityError(available.error);
+      await tx.update(guestsTable).set(body.data).where(eq(guestsTable.id, existing.id));
+    });
+  } catch (error) {
+    if (error instanceof CapacityError) {
+      res.status(409).json({ error: error.message });
+      return;
+    }
+    throw error;
   }
-  await db.update(guestsTable).set(body.data).where(eq(guestsTable.id, existing.id));
   res.json(await buildGuest(existing.eventId, existing.id));
 });
 

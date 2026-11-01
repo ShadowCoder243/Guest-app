@@ -7,6 +7,10 @@ import { logger } from "./lib/logger";
 import { loadSession } from "./middlewares/auth";
 
 const app: Express = express();
+const configuredOrigins = (process.env.FRONTEND_ORIGIN ?? "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
 app.use(
   pinoHttp({
@@ -29,7 +33,7 @@ app.use(
 );
 app.use(
   cors({
-    origin: process.env.FRONTEND_ORIGIN || true,
+    origin: configuredOrigins.length > 0 ? configuredOrigins : process.env.NODE_ENV === "production" ? false : true,
     credentials: true,
   }),
 );

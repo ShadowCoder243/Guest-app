@@ -1,5 +1,5 @@
 import { asc, eq, sql } from "drizzle-orm";
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type RequestHandler } from "express";
 import {
   CreateEventBody,
   DeleteEventParams,
@@ -12,16 +12,37 @@ import {
   UpdateEventParams,
 } from "@workspace/api-zod";
 import { db, eventsTable, guestTablesTable, guestsTable } from "@workspace/db";
-import { requireAdmin, requireUser } from "../middlewares/auth";
+import { canAccessEvent, requireUser } from "../middlewares/auth";
 
 const router: IRouter = Router();
 
+const requireAccessibleEvent: RequestHandler = async (req, res, next): Promise<void> => {
+  if (!req.user) {
+    res.status(401).json({ error: "Connexion requise" });
+    return;
+  }
+  const eventId = req.params.eventId;
+  if (typeof eventId !== "string" || !(await canAccessEvent(req.user, eventId))) {
+    res.status(404).json({ error: "Événement introuvable" });
+    return;
+  }
+  next();
+};
+
+router.use("/events/:eventId", requireAccessibleEvent);
+
 router.get("/events", requireUser, async (_req, res): Promise<void> => {
-  const events = await db.select().from(eventsTable).orderBy(asc(eventsTable.eventAt));
+  const events = _req.user!.role === "admin"
+    ? await db.select().from(eventsTable).orderBy(asc(eventsTable.eventAt))
+    : await db
+        .select()
+        .from(eventsTable)
+        .where(eq(eventsTable.createdBy, _req.user!.id))
+        .orderBy(asc(eventsTable.eventAt));
   res.json(GetEventsResponse.parse(events));
 });
 
-router.post("/events", requireAdmin, async (req, res): Promise<void> => {
+router.post("/events", requireUser, async (req, res): Promise<void> => {
   const parsed = CreateEventBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -48,7 +69,7 @@ router.get("/events/:eventId", requireUser, async (req, res): Promise<void> => {
   res.json(GetEventResponse.parse(event));
 });
 
-router.patch("/events/:eventId", requireAdmin, async (req, res): Promise<void> => {
+router.patch("/events/:eventId", requireUser, async (req, res): Promise<void> => {
   const params = UpdateEventParams.safeParse(req.params);
   const parsed = UpdateEventBody.safeParse(req.body);
   if (!params.success) {
@@ -71,7 +92,7 @@ router.patch("/events/:eventId", requireAdmin, async (req, res): Promise<void> =
   res.json(GetEventResponse.parse(event));
 });
 
-router.delete("/events/:eventId", requireAdmin, async (req, res): Promise<void> => {
+router.delete("/events/:eventId", requireUser, async (req, res): Promise<void> => {
   const params = DeleteEventParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
