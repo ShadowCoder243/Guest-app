@@ -13,6 +13,8 @@
     "@replit/connectors-sdk": "^0.4.3"
   },
   "devDependencies": {
+    "@tailwindcss/oxide-linux-arm64-gnu": "4.3.3",
+    "lightningcss-linux-arm64-gnu": "1.32.0",
     "prettier": "^3.9.10",
     "typescript": "~5.9.3"
   }
